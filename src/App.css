@@ -210,7 +210,6 @@ footer span { color: #b8a1f5; }
   gap: 14px;
 }
 @media (max-width: 700px) {
- @media (max-width: 700px) {
   .sidebar {
     position: static;
     inset: auto;
@@ -248,27 +247,6 @@ footer span { color: #b8a1f5; }
     min-height: 40px;
     white-space: nowrap;
   }
-}
-
-
-.brand {
-  width: auto;
-  flex: 0 0 auto;
-  margin: 0 12px 0 0;
-}
-
-.nav-heading,
-.sidebar-note {
-  display: none;
-}
-
-.nav-item {
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 10px 12px;
-  font-size: 13px;
-  min-height: 40px;
-}
 
   .main-content {
     margin-left: 0;
