@@ -48,33 +48,45 @@ export async function searchTMDB(query, mediaType = 'multi') {
     throw new Error(`TMDB request failed: ${response.status}`)
   }
 
-  const result = await response.json()
+  const results = result.results || []
 
-  return (result.results || [])
-    .filter(item => item.media_type !== 'person')
-    .map(item => ({
-      id: `tmdb-${item.media_type || mediaType}-${item.id}`,
+return results
+  .filter(item => {
+    // Exclude people and results without a valid media type
+    const type = item.media_type || mediaType
+
+    if (type !== 'movie' && type !== 'tv') return false
+
+    // Exclude results without a title
+    const title = item.title || item.name
+    if (!title) return false
+
+    // Exclude results without a poster
+    if (!item.poster_path) return false
+
+    return true
+  })
+  .map(item => {
+    const type = item.media_type || mediaType
+    const rating = Number(item.vote_average)
+
+    return {
+      id: `tmdb-${type}-${item.id}`,
       title: item.title || item.name,
-      category:
-        item.media_type === 'tv' || mediaType === 'tv'
-          ? 'TV Shows'
-          : 'Movies',
+      category: type === 'tv' ? 'TV Shows' : 'Movies',
       year: (item.release_date || item.first_air_date || '').slice(0, 4),
       status: 'Planned',
-      icon: item.media_type === 'tv' ? '📺' : '🎬',
-      image: item.poster_path
-        ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
-        : '',
+      icon: type === 'tv' ? '📺' : '🎬',
+      image: `https://image.tmdb.org/t/p/w500${item.poster_path}`,
       overview: item.overview || '',
-      rating: typeof item.vote_average === 'number'
-        ? item.vote_average
-        : null,
+      rating: Number.isFinite(rating) && rating > 0 ? rating : null,
       genres: (item.genre_ids || [])
-  .map(id => genreMap[id])
-  .filter(Boolean),
+        .map(id => genreMap[id])
+        .filter(Boolean),
       tmdbId: item.id,
-      mediaType: item.media_type || mediaType,
-    }))
+      mediaType: type,
+    }
+  })
 }
 export async function getTMDBDetails(tmdbId, mediaType) {
   const response = await fetch(

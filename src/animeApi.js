@@ -1,13 +1,14 @@
-
-const API_URL = 'https://graphql.anilist.co'
-
 export async function searchAnime(query) {
   if (!query.trim()) return []
 
   const graphqlQuery = `
     query ($search: String) {
       Page(page: 1, perPage: 12) {
-        media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+        media(
+          search: $search,
+          type: ANIME,
+          sort: [SEARCH_MATCH, POPULARITY_DESC]
+        ) {
           id
           title {
             romaji
@@ -27,7 +28,7 @@ export async function searchAnime(query) {
     }
   `
 
-  const response = await fetch(API_URL, {
+  const response = await fetch('https://graphql.anilist.co', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -35,33 +36,29 @@ export async function searchAnime(query) {
     },
     body: JSON.stringify({
       query: graphqlQuery,
-      variables: { search: query.trim() },
+      variables: { search: query },
     }),
   })
 
   if (!response.ok) {
-    throw new Error(`Anime API error: ${response.status}`)
+    throw new Error('Unable to search anime.')
   }
 
   const result = await response.json()
 
-  if (result.errors?.length) {
-    throw new Error(result.errors[0].message)
-  }
-
-  return (result.data?.Page?.media ?? []).map(anime => ({
-    id: `anime-${anime.id}`,
-    title: anime.title.english || anime.title.romaji,
-    category: 'Anime',
-    year: anime.startDate.year ?? '',
-    status: 'Planned',
-    icon: '⛩️',
-    image: anime.coverImage.large,
-    episodes: anime.episodes ?? 'Unknown',
-    score: anime.averageScore
-      ? `${anime.averageScore}/100`
-      : 'Not rated',
-    rating: anime.averageScore,
-    genres: anime.genres ?? [],
-  }))
+  return (result.data?.Page?.media ?? [])
+    .filter(anime => anime.title?.english || anime.title?.romaji)
+    .map(anime => ({
+      id: `anime-${anime.id}`,
+      title: anime.title.english || anime.title.romaji,
+      category: 'Anime',
+      year: anime.startDate?.year ?? '',
+      status: 'Planned',
+      icon: '⛩️',
+      image: anime.coverImage?.large || '',
+      episodes: anime.episodes ?? 'Unknown',
+      score: anime.averageScore,
+      rating: anime.averageScore,
+      genres: anime.genres ?? [],
+    }))
 }

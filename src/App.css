@@ -453,7 +453,25 @@ footer span { color: #b8a1f5; }
   opacity: 0.6;
   cursor: wait;
 }
+.anime-search-form select {
+  padding: 12px 14px;
+  color: #f1f0f8;
+  background: #242432;
+  border: 1px solid #373247;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+}
 
+.anime-search-form select:focus {
+  border-color: #a78bfa;
+}
+
+.anime-search-form select option {
+  color: #f1f0f8;
+  background: #242432;
+}
 .anime-results {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 import { searchAnime } from './animeApi'
+import { searchGames } from './gamesApi'
 import {
   searchTMDB,
   getTMDBDetails,
@@ -30,7 +31,7 @@ function App() {
       return initialItems
     }
   })
-
+const [searchType, setSearchType] = useState('multi')
   const [user, setUser] = useState(null)
   useEffect(() => {
   supabase.auth.getSession().then(({ data: { session } }) => {
@@ -160,6 +161,10 @@ const [movieResults, setMovieResults] = useState([])
 const [movieLoading, setMovieLoading] = useState(false)
 const [movieError, setMovieError] = useState('')
 const [movieType, setMovieType] = useState('multi')
+const [gameQuery, setGameQuery] = useState('')
+const [gameResults, setGameResults] = useState([])
+const [gameLoading, setGameLoading] = useState(false)
+const [gameError, setGameError] = useState('')
 
   function updateItems(nextItems) {
     setItems(nextItems)
@@ -253,6 +258,28 @@ async function handleMovieSearch(e) {
     setMovieError(error.message || 'Unable to search TMDB.')
   } finally {
     setMovieLoading(false)
+  }
+}
+async function handleGameSearch(e) {
+  e.preventDefault()
+
+  if (!gameQuery.trim()) return
+
+  setGameLoading(true)
+  setGameError('')
+  setGameResults([])
+
+  try {
+    const results = await searchGames(gameQuery)
+    setGameResults(results)
+
+    if (results.length === 0) {
+      setGameError('No games found. Try another title.')
+    }
+  } catch (error) {
+    setGameError(error.message || 'Unable to search games. Please try again.')
+  } finally {
+    setGameLoading(false)
   }
 }
 
@@ -697,129 +724,188 @@ const filtered = items
     ))}
   </div>
 </section>
+<section className="anime-search-section">
+  <div>
+    <span className="eyebrow">DISCOVER</span>
+    <h2>Find your next watch</h2>
+    <p>Search movies, TV shows, and anime from one place.</p>
+  </div>
 
-        <section className="anime-search-section">
-          <div>
-            <span className="eyebrow">DISCOVER ANIME</span>
-            <h2>Find your next anime</h2>
-            <p>
-              Search the anime catalog and add titles directly to your checklist.
-            </p>
-          </div>
+  <form
+    className="anime-search-form"
+    onSubmit={async (e) => {
+      e.preventDefault();
 
-          <form className="anime-search-form" onSubmit={handleAnimeSearch}>
-            <input
-              value={animeQuery}
-              onChange={e => setAnimeQuery(e.target.value)}
-              placeholder="Search anime, e.g. Naruto..."
-              required
-            />
+     if (searchType === 'anime') {
+  await handleAnimeSearch(e);
+} else if (searchType === 'game') {
+  await handleGameSearch(e);
+} else {
+  await handleMovieSearch(e);
+}
+    }}
+  >
+    <input
+      value={
+  searchType === 'anime'
+    ? animeQuery
+    : searchType === 'game'
+      ? gameQuery
+      : movieQuery
+}
+     onChange={(e) => {
+  const value = e.target.value
 
-            <button type="submit" disabled={animeLoading}>
-              {animeLoading ? 'Searching...' : 'Search Anime'}
-            </button>
-          </form>
+  if (searchType === 'anime') {
+    setAnimeQuery(value)
+  } else if (searchType === 'game') {
+    setGameQuery(value)
+  } else {
+    setMovieQuery(value)
+  }
+}}
+      placeholder="Search movies, TV shows, or anime..."
+      required
+    />
 
-          {animeError && (
-            <p className="anime-error" role="status">{animeError}</p>
+<select
+  value={searchType}
+  onChange={(e) => {
+    const value = e.target.value
+    setSearchType(value)
+
+    if (['multi', 'movie', 'tv'].includes(value)) {
+      setMovieType(value)
+    }
+  }}
+>
+  <option value="multi">Movies & TV Shows</option>
+  <option value="anime">Anime</option>
+  <option value="game">Games</option>
+  <option value="movie">Movies only</option>
+  <option value="tv">TV shows only</option>
+</select>
+
+    <button
+      type="submit"
+      disabled={searchType === 'anime' ? animeLoading : movieLoading}
+    >
+      {
+  (
+    searchType === 'anime'
+      ? animeLoading
+      : searchType === 'game'
+        ? gameLoading
+        : movieLoading
+  )
+    ? 'Searching...'
+    : 'Search'
+}
+    </button>
+  </form>
+
+  {animeError && searchType === 'anime' && (
+    <p className="anime-error" role="status">{animeError}</p>
+  )}
+
+  {movieError && searchType !== 'anime' && (
+    <p className="anime-error" role="status">{movieError}</p>
+  )}
+{searchType === 'game' && gameError && (
+  <p className="anime-error" role="status">{gameError}</p>
+)}
+  {searchType === 'anime' && (
+    <div className="anime-results">
+      {animeResults.map(anime => (
+        <article className="anime-result-card" key={anime.id}>
+          {anime.image && (
+            <img src={anime.image} alt={anime.title} />
           )}
 
-          <div className="anime-results">
-            {animeResults.map(anime => (
-              <article className="anime-result-card" key={anime.id}>
-                {anime.image && (
-                  <img src={anime.image} alt={anime.title} />
-                )}
-
-                <div className="anime-result-info">
+         <div className="anime-result-info">
   <h3>{anime.title}</h3>
 
-  <p>Episodes: {anime.episodes}</p>
-  <p>⭐ Rating: {anime.score}</p>
+  <p>Category: Anime</p>
+  <p>Episodes: {anime.episodes ?? 'Unknown'}</p>
+
+ {Number.isFinite(Number(anime.score)) && Number(anime.score) > 0 && (
+  <p>⭐ Rating: {Number(anime.score).toFixed(1)}/100</p>
+)}
 
   {anime.genres?.length > 0 && (
     <p>Genres: {anime.genres.join(', ')}</p>
   )}
 
-
-                  <button
-                    type="button"
-                    onClick={() => addAnimeToChecklist(anime)}
-                  >
-                    + Add to Checklist
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-        
-<section className="anime-search-section">
-  <div>
-    <span className="eyebrow">DISCOVER MOVIES & TV</span>
-    <h2>Find your next watch</h2>
-    <p>Search movies and television shows from TMDB.</p>
-  </div>
-
-  <form className="anime-search-form" onSubmit={handleMovieSearch}>
-    <input
-      value={movieQuery}
-      onChange={e => setMovieQuery(e.target.value)}
-      placeholder="Search movies or TV shows..."
-      required
-    />
-
-    <select
-      value={movieType}
-      onChange={e => setMovieType(e.target.value)}
-    >
-      <option value="multi">Movies & TV Shows</option>
-      <option value="movie">Movies only</option>
-      <option value="tv">TV shows only</option>
-    </select>
-
-    <button type="submit" disabled={movieLoading}>
-      {movieLoading ? 'Searching...' : 'Search'}
-    </button>
-  </form>
-
-  {movieError && <p className="anime-error">{movieError}</p>}
-
-  
-<div className="anime-results">
-  {movieResults.map(movie => (
-    <article className="anime-result-card" key={movie.id}>
-      {movie.image && (
-        <img src={movie.image} alt={movie.title} />
-      )}
-
-      <div className="anime-result-info">
-        <h3>{movie.title}</h3>
-
-        <p>Category: {movie.category}</p>
-        <p>Year: {movie.year || 'Unknown'}</p>
-
-        {movie.rating != null && (
-          <p>
-            ⭐ Rating: {Number(movie.rating).toFixed(1)}/10
-          </p>
-        )}
-
-        {movie.genres?.length > 0 && (
-          <p>Genres: {movie.genres.join(', ')}</p>
-        )}
-
-        <button
-          type="button"
-          onClick={() => addMovieToChecklist(movie)}
-        >
-          + Add to Checklist
-        </button>
-      </div>
-    </article>
-  ))}
+  <button
+    type="button"
+    onClick={() => addAnimeToChecklist(anime)}
+  >
+    + Add to Checklist
+  </button>
 </div>
+        </article>
+      ))}
+    </div>
+  )}
+{searchType === 'game' && (
+  <>
+  
+    <div className="anime-results">
+      {gameResults.map(game => (
+        <article className="anime-result-card" key={game.id}>
+          {game.image && (
+            <img src={game.image} alt={game.title} />
+          )}
 
+          <div className="anime-result-info">
+            <h3>{game.title}</h3>
+            <p>Category: Games</p>
+
+            <button
+              type="button"
+              onClick={() => addMovieToChecklist(game)}
+            >
+              + Add to Checklist
+            </button>
+          </div>
+        </article>
+      ))}
+    </div>
+  </>
+)}
+  {searchType !== 'anime' && (
+    <div className="anime-results">
+      {movieResults.map(movie => (
+        <article className="anime-result-card" key={movie.id}>
+          {movie.image && (
+            <img src={movie.image} alt={movie.title} />
+          )}
+
+         <div className="anime-result-info">
+  <h3>{movie.title}</h3>
+
+  <p>Category: {movie.category || 'Movie / TV'}</p>
+  <p>Year: {movie.year || 'Unknown'}</p>
+
+  {movie.rating != null && (
+    <p>⭐ Rating: {Number(movie.rating).toFixed(1)}/10</p>
+  )}
+
+  {movie.genres?.length > 0 && (
+    <p>Genres: {movie.genres.join(', ')}</p>
+  )}
+
+  <button
+    type="button"
+    onClick={() => addMovieToChecklist(movie)}
+  >
+    + Add to Checklist
+  </button>
+</div>
+        </article>
+      ))}
+    </div>
+  )}
 </section>
 
 
