@@ -284,13 +284,17 @@ async function handleGameSearch(e) {
 }
 
 function addMovieToChecklist(movie) {
-  if (items.some(item => String(item.id) === String(movie.id))) {
-    setMovieError('This title is already in your checklist.')
+  const alreadyExists = items.some(
+    item => String(item.id) === String(movie.id)
+  )
+
+  if (alreadyExists) {
+    setMovieError(`"${movie.title}" is already in your checklist.`)
     return
   }
 
   updateItems([...items, movie])
-  setMovieError(`${movie.title} added to your checklist.`)
+  setMovieError(`"${movie.title}" added to your checklist.`)
 }
 
 
@@ -848,30 +852,38 @@ const filtered = items
     </div>
   )}
 {searchType === 'game' && (
-  <>
-  
-    <div className="anime-results">
-      {gameResults.map(game => (
-        <article className="anime-result-card" key={game.id}>
-          {game.image && (
-            <img src={game.image} alt={game.title} />
+  <div className="anime-results">
+    {gameResults.map(game => (
+      <article className="anime-result-card" key={game.id}>
+        {game.image && (
+          <img src={game.image} alt={game.title} />
+        )}
+
+        <div className="anime-result-info">
+          <h3>{game.title}</h3>
+
+          <p>Category: Games</p>
+
+          <p>📅 Release year: {game.year || 'Unknown'}</p>
+
+          {game.rating != null && (
+            <p>⭐ Rating: {Number(game.rating).toFixed(1)}/10</p>
           )}
 
-          <div className="anime-result-info">
-            <h3>{game.title}</h3>
-            <p>Category: Games</p>
+          {game.genres?.length > 0 && (
+            <p>🎭 Genres: {game.genres.join(', ')}</p>
+          )}
 
-            <button
-              type="button"
-              onClick={() => addMovieToChecklist(game)}
-            >
-              + Add to Checklist
-            </button>
-          </div>
-        </article>
-      ))}
-    </div>
-  </>
+          <button
+            type="button"
+            onClick={() => addMovieToChecklist(game)}
+          >
+            + Add to Checklist
+          </button>
+        </div>
+      </article>
+    ))}
+  </div>
 )}
   {searchType !== 'anime' && (
     <div className="anime-results">
