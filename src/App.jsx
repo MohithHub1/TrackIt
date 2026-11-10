@@ -292,9 +292,16 @@ async function handleGameSearch(e) {
 async function addMovieToChecklist(movie) {
   const itemKey = String(movie.id)
 
-  const alreadyExists = items.some(
-    item => String(item.id) === itemKey
-  )
+ const alreadyExists = items.some(
+  item =>
+    (
+      String(item.id) === itemKey ||
+      (
+        item.category === movie.category &&
+        item.title.trim().toLowerCase() === movie.title.trim().toLowerCase()
+      )
+    )
+)
 
   if (alreadyExists || addingItemsRef.current.has(itemKey)) {
     setMovieError(`"${movie.title}" is already in your checklist.`)
@@ -333,11 +340,12 @@ async function addMovieToChecklist(movie) {
     setMovieError(`"${movie.title}" added to your checklist.`)
 
   } catch (error) {
+  if (error.code === '23505') {
+    setMovieError(`"${movie.title}" is already in your checklist.`)
+  } else {
     alert(error.message)
-  } finally {
-    addingItemsRef.current.delete(itemKey)
-    setAddingItems(prev => prev.filter(id => id !== itemKey))
   }
+}
 }
 async function updateExistingTMDBItems() {
   try {
@@ -381,15 +389,59 @@ async function updateExistingTMDBItems() {
 
 
 
-  function addAnimeToChecklist(anime) {
-    if (items.some(item => String(item.id) === String(anime.id))) {
-      setAnimeError('This anime is already in your checklist.')
-      return
+async function addAnimeToChecklist(anime) {
+  const itemKey = String(anime.id)
+
+ if (
+  items.some(
+    item =>
+      item.category === 'Anime' &&
+      item.title.trim().toLowerCase() === anime.title.trim().toLowerCase()
+  ) ||
+  addingItemsRef.current.has(itemKey)
+) {
+    setAnimeError('This anime is already in your checklist.')
+    return
+  }
+
+  addingItemsRef.current.add(itemKey)
+  setAddingItems(prev => [...prev, itemKey])
+
+  try {
+    let itemToSave = anime
+
+    if (user) {
+      const { data, error } = await supabase
+        .from('items')
+        .insert({
+          user_id: user.id,
+          title: anime.title,
+          category: 'Anime',
+          year: anime.year ? String(anime.year) : null,
+          status: anime.status || 'Planned',
+          image: anime.image || null,
+          rating: anime.rating ?? null,
+          genres: anime.genres || [],
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      itemToSave = data
     }
 
-    updateItems([...items, anime])
+    updateItems([...items, itemToSave])
     setAnimeError(`${anime.title} added to your checklist.`)
+
+  } catch (error) {
+  if (error.code === '23505') {
+    setAnimeError('This anime is already in your checklist.')
+  } else {
+    alert(error.message)
   }
+}
+}
  async function changeStatus(item) {
   const nextStatus =
     item.status === 'Completed' ? 'Planned' : 'Completed'
@@ -931,12 +983,15 @@ const filtered = items
             <p>🎭 Genres: {game.genres.join(', ')}</p>
           )}
 
-          <button
-            type="button"
-            onClick={() => addMovieToChecklist(game)}
-          >
-            + Add to Checklist
-          </button>
+         <button
+  type="button"
+  disabled={addingItems.includes(String(game.id))}
+  onClick={() => addMovieToChecklist(game)}
+>
+  {addingItems.includes(String(game.id))
+    ? 'Adding...'
+    : '+ Add to Checklist'}
+</button>
         </div>
       </article>
     ))}
