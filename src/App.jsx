@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import { searchAnime } from './animeApi'
 import { searchGames } from './gamesApi'
@@ -78,6 +77,7 @@ async function handleLogout() {
     setUser(null)
   }
 }
+
 const [theme, setTheme] = useState('dark')
   const [category, setCategory] = useState('All')
   const [search, setSearch] = useState('')
@@ -152,6 +152,7 @@ const [editYear, setEditYear] = useState('')
   const [newTitle, setNewTitle] = useState('')
   const [newCategory, setNewCategory] = useState('Movies')
 
+
   const [animeQuery, setAnimeQuery] = useState('')
   const [animeResults, setAnimeResults] = useState([])
   const [animeLoading, setAnimeLoading] = useState(false)
@@ -165,6 +166,11 @@ const [gameQuery, setGameQuery] = useState('')
 const [gameResults, setGameResults] = useState([])
 const [gameLoading, setGameLoading] = useState(false)
 const [gameError, setGameError] = useState('')
+const [genreFilter, setGenreFilter] = useState('All')
+const [addingItems, setAddingItems] = useState([])
+const addingItemsRef = useRef(new Set())
+const [ratingFilter, setRatingFilter] = useState('All')
+const [yearFilter, setYearFilter] = useState('All')
 
   function updateItems(nextItems) {
     setItems(nextItems)
@@ -190,7 +196,7 @@ const [gameError, setGameError] = useState('')
       Courses: '🎓',
     }[newCategory],
   }
-
+console.log("Current Supabase user:", user)
   if (user) {
     const { error } = await supabase.from('items').insert({
       user_id: user.id,
@@ -283,21 +289,56 @@ async function handleGameSearch(e) {
   }
 }
 
-function addMovieToChecklist(movie) {
+async function addMovieToChecklist(movie) {
+  const itemKey = String(movie.id)
+
   const alreadyExists = items.some(
-    item => String(item.id) === String(movie.id)
+    item => String(item.id) === itemKey
   )
 
-  if (alreadyExists) {
+  if (alreadyExists || addingItemsRef.current.has(itemKey)) {
     setMovieError(`"${movie.title}" is already in your checklist.`)
     return
   }
 
-  updateItems([...items, movie])
-  setMovieError(`"${movie.title}" added to your checklist.`)
+  // Lock immediately to prevent rapid repeated clicks
+  addingItemsRef.current.add(itemKey)
+  setAddingItems(prev => [...prev, itemKey])
+
+  try {
+    let itemToSave = movie
+
+    if (user) {
+      const { data, error } = await supabase
+        .from('items')
+        .insert({
+          user_id: user.id,
+          title: movie.title,
+          category: movie.category,
+          year: movie.year ? String(movie.year) : null,
+          status: movie.status || 'Planned',
+          image: movie.image || null,
+          rating: movie.rating ?? null,
+          genres: movie.genres || [],
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      itemToSave = data
+    }
+
+    updateItems([...items, itemToSave])
+    setMovieError(`"${movie.title}" added to your checklist.`)
+
+  } catch (error) {
+    alert(error.message)
+  } finally {
+    addingItemsRef.current.delete(itemKey)
+    setAddingItems(prev => prev.filter(id => id !== itemKey))
+  }
 }
-
-
 async function updateExistingTMDBItems() {
   try {
     setMovieError('Updating existing movie and TV details...')
@@ -500,21 +541,37 @@ const filtered = items
   .filter(item =>
     (category === 'All' || item.category === category) &&
     (status === 'All' || item.status === status) &&
-    item.title.toLowerCase().includes(search.toLowerCase())
+    item.title.toLowerCase().includes(search.toLowerCase()) &&
+
+    (category !== 'Games' || genreFilter === 'All' ||
+      item.genres?.includes(genreFilter)) &&
+
+    (category !== 'Games' || ratingFilter === 'All' ||
+      (item.rating != null &&
+        item.rating >= Number(ratingFilter))) &&
+
+    (category !== 'Games' || yearFilter === 'All' ||
+      String(item.year) === yearFilter)
   )
-  .sort((a, b) => {
-    if (sortBy === 'title') {
-      return a.title.localeCompare(b.title)
-    }
+ .sort((a, b) => {
+  if (sortBy === 'title') {
+    return a.title.localeCompare(b.title)
+  }
 
-    if (sortBy === 'year') {
-      return Number(b.year || 0) - Number(a.year || 0)
-    }
+  if (sortBy === 'year') {
+    return Number(b.year || 0) - Number(a.year || 0)
+  }
 
-    return Number(b.id) - Number(a.id)
-  })
+  if (sortBy === 'rating') {
+    return Number(b.rating ?? -1) - Number(a.rating ?? -1)
+  }
 
+  if (sortBy === 'year-oldest') {
+    return Number(a.year || 9999) - Number(b.year || 9999)
+  }
 
+  return Number(b.id) - Number(a.id)
+})
   const completed = items.filter(i => i.status === 'Completed').length
   const inProgress = items.filter(i => i.status === 'Watching').length
   const progress = items.length
@@ -1014,17 +1071,77 @@ const filtered = items
   <label className="sort-control">
     <span>Sort:</span>
     <select
-      aria-label="Sort collection"
-      value={sortBy}
-      onChange={e => setSortBy(e.target.value)}
-    >
-      <option value="newest">Newest added</option>
-      <option value="title">Title (A–Z)</option>
-      <option value="year">Year (newest first)</option>
-    </select>
+  aria-label="Sort collection"
+  value={sortBy}
+  onChange={e => setSortBy(e.target.value)}
+>
+  <option value="newest">Newest added</option>
+  <option value="title">Title (A–Z)</option>
+  <option value="year">Year (newest first)</option>
+
+  {category === 'Games' && (
+    <>
+      <option value="rating">Highest rated</option>
+      <option value="year-oldest">Oldest release</option>
+    </>
+  )}
+</select>
   </label>
 </div>
+{category === 'Games' && (
+  <div className="toolbar game-filters">
 
+    <select
+      value={genreFilter}
+      onChange={e => setGenreFilter(e.target.value)}
+    >
+      <option value="All">All Genres</option>
+      {[...new Set(
+        items
+          .filter(item => item.category === 'Games')
+          .flatMap(item => item.genres || [])
+      )].sort().map(genre => (
+        <option key={genre} value={genre}>{genre}</option>
+      ))}
+    </select>
+
+    <select
+      value={ratingFilter}
+      onChange={e => setRatingFilter(e.target.value)}
+    >
+      <option value="All">All Ratings</option>
+      <option value="7">7+ Rating</option>
+      <option value="8">8+ Rating</option>
+      <option value="9">9+ Rating</option>
+    </select>
+
+    <select
+      value={yearFilter}
+      onChange={e => setYearFilter(e.target.value)}
+    >
+      <option value="All">All Years</option>
+      {[...new Set(
+        items
+          .filter(item => item.category === 'Games' && item.year)
+          .map(item => String(item.year))
+      )].sort((a, b) => Number(b) - Number(a)).map(year => (
+        <option key={year} value={year}>{year}</option>
+      ))}
+    </select>
+
+    <button
+      type="button"
+      onClick={() => {
+        setGenreFilter('All')
+        setRatingFilter('All')
+        setYearFilter('All')
+      }}
+    >
+      Reset Filters
+    </button>
+
+  </div>
+)}
 
           <div className="category-pills">
             {categories.map(c => (
@@ -1106,13 +1223,11 @@ const filtered = items
         </div>
       )}
 
-      {item.genres?.length > 0 && (
-        <div className="item-genres">
-          {item.genres.slice(0, 3).map(genre => (
-            <span key={genre}>{genre}</span>
-          ))}
-        </div>
-      )}
+    {item.genres?.length > 0 && (
+  <div className="item-genres">
+    {item.genres.slice(0, 3).join(', ')}
+  </div>
+)}
 
       <div className="item-bottom">
         <span className={`status status-${item.status.toLowerCase()}`}>

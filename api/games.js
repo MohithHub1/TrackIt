@@ -1,3 +1,4 @@
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -5,100 +6,75 @@ export default async function handler(req, res) {
 
   try {
     const query = String(req.query.search || '').trim()
+    const apiKey = process.env.THEGAMESDB_API_KEY
 
     if (!query) {
       return res.status(400).json({ error: 'Search query is required' })
     }
 
-    const clientId = process.env.TWITCH_CLIENT_ID
-    const clientSecret = process.env.TWITCH_CLIENT_SECRET
-    console.log('Twitch environment check:', {
-  clientIdPresent: Boolean(clientId),
-  clientSecretPresent: Boolean(clientSecret),
-  clientIdLength: clientId?.length || 0,
-  clientSecretLength: clientSecret?.length || 0,
-})
-
-    if (!clientId || !clientSecret) {
+    if (!apiKey) {
       return res.status(500).json({
-        error: 'Twitch credentials are missing'
+        error: 'TheGamesDB API key is missing'
       })
     }
 
-    const tokenResponse = await fetch(
-      'https://id.twitch.tv/oauth2/token',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
-          grant_type: 'client_credentials'
-        })
-      }
+    const params = new URLSearchParams({
+      apikey: apiKey,
+      name: query,
+      fields: 'genres,rating',
+      include: 'boxart',
+      page: '1'
+    })
+
+    const response = await fetch(
+      `https://api.thegamesdb.net/v1/Games/ByGameName?${params}`
     )
 
-   if (!tokenResponse.ok) {
-  const authError = await tokenResponse.json()
-
-  console.error('Twitch authentication error:', {
-    status: tokenResponse.status,
-    error: authError.message || authError.error
-  })
-
-  throw new Error(
-    `Twitch authentication failed: ${authError.message || authError.error}`
-  )
-}
-
-    const tokenData = await tokenResponse.json()
-
-    const safeQuery = query.replace(/["\\]/g, '')
-
-    const igdbResponse = await fetch(
-      'https://api.igdb.com/v4/games',
-      {
-        method: 'POST',
-        headers: {
-          'Client-ID': clientId,
-          Authorization: `Bearer ${tokenData.access_token}`,
-          'Content-Type': 'text/plain'
-        },
-        body: `
-          search "${safeQuery}";
-          fields name, cover.url, first_release_date, rating, genres.name;
-          limit 12;
-        `
-      }
-    )
-
-    if (!igdbResponse.ok) {
-      throw new Error(`IGDB request failed: ${igdbResponse.status}`)
+    if (!response.ok) {
+      throw new Error(`TheGamesDB request failed: ${response.status}`)
     }
 
-    const games = await igdbResponse.json()
+    const result = await response.json()
 
-    return res.status(200).json(
-      games.map(game => ({
+    const games = result.data?.games || []
+    const boxart = result.include?.boxart?.data || {}
+    const baseUrl = result.include?.boxart?.base_url
+    const genreResponse = await fetch(
+  `https://api.thegamesdb.net/v1/Genres?apikey=${encodeURIComponent(apiKey)}`
+)
+
+if (!genreResponse.ok) {
+  throw new Error('Unable to fetch game genres')
+}
+
+const genreResult = await genreResponse.json()
+const genreMap = genreResult.data?.genres || {}
+
+    const mappedGames = games.slice(0, 12).map(game => {
+      const images = boxart[game.id] || []
+      const frontImage = images.find(img => img.side === 'front')
+      const imageUrl = frontImage && baseUrl
+        ? `${baseUrl.original}/${frontImage.filename}`
+        : ''
+
+      return {
         id: `game-${game.id}`,
-        title: game.name,
+        title: game.game_title,
         category: 'Games',
-        year: game.first_release_date
-          ? new Date(game.first_release_date * 1000).getUTCFullYear()
+        year: game.release_date
+          ? Number(game.release_date.slice(0, 4))
           : '',
         status: 'Planned',
         icon: '🎮',
-        image: game.cover?.url
-          ? `https:${game.cover.url.replace('t_thumb', 't_cover_big')}`
-          : '',
-        rating: game.rating != null
-          ? Number((game.rating / 10).toFixed(1))
-          : null,
-        genres: game.genres?.map(genre => genre.name) || []
-      }))
-    )
+        image: imageUrl,
+        rating: null,
+         genres: (game.genres || [])
+  .map(id => genreMap[id]?.name)
+      .filter(Boolean)      }
+    })
+
+    return res.status(200).json(mappedGames)
+
   } catch (error) {
     console.error('Game search error:', error)
 
