@@ -48,7 +48,8 @@ export async function searchTMDB(query, mediaType = 'multi') {
     throw new Error(`TMDB request failed: ${response.status}`)
   }
 
-  const results = result.results || []
+  const data = await response.json()
+const results = data.results || []
 
 return results
   .filter(item => {
@@ -97,8 +98,7 @@ export async function getTMDBDetails(tmdbId, mediaType) {
     throw new Error(`TMDB details error: ${response.status}`)
   }
 
-  const data = await response.json()
-
+const data = await response.json()
   return {
     rating: data.vote_average ?? null,
     genres: (data.genres || []).map(genre => genre.name),
