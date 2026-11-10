@@ -50,31 +50,48 @@ if (!genreResponse.ok) {
 const genreResult = await genreResponse.json()
 const genreMap = genreResult.data?.genres || {}
 
-    const mappedGames = games.slice(0, 12).map(game => {
-      const images = boxart[game.id] || []
-      const frontImage = images.find(img => img.side === 'front')
-      const imageUrl = frontImage && baseUrl
-        ? `${baseUrl.original}/${frontImage.filename}`
-        : ''
+   const mappedGames = games.map(game => {
+  const images = boxart[game.id] || []
+  const frontImage = images.find(img => img.side === 'front')
 
-      return {
-        id: `game-${game.id}`,
-        title: game.game_title,
-        category: 'Games',
-        year: game.release_date
-          ? Number(game.release_date.slice(0, 4))
-          : '',
-        status: 'Planned',
-        icon: '🎮',
-        image: imageUrl,
-        rating: null,
-         genres: (game.genres || [])
-  .map(id => genreMap[id]?.name)
-      .filter(Boolean)      }
-    })
+  const imageUrl = frontImage && baseUrl
+    ? `${baseUrl.original}/${frontImage.filename}`
+    : ''
 
-    return res.status(200).json(mappedGames)
+  return {
+    id: `game-${game.id}`,
+    title: game.game_title,
+    category: 'Games',
+    year: game.release_date
+      ? Number(game.release_date.slice(0, 4))
+      : '',
+    status: 'Planned',
+    icon: '🎮',
+    image: imageUrl,
+    rating: null,
+    genres: (game.genres || [])
+      .map(id => genreMap[id]?.name)
+      .filter(Boolean)
+  }
+})
 
+// Remove duplicate titles while preserving different editions
+const uniqueGames = []
+const seenTitles = new Set()
+
+for (const game of mappedGames) {
+  const normalizedTitle = game.title.trim().toLowerCase()
+
+  if (!seenTitles.has(normalizedTitle)) {
+    seenTitles.add(normalizedTitle)
+    uniqueGames.push(game)
+  }
+
+  if (uniqueGames.length === 12) break
+}
+return res.status(200).json(uniqueGames)
+console.log('Games before deduplication:', mappedGames.length)
+console.log('Games after deduplication:', uniqueGames.length)
   } catch (error) {
     console.error('Game search error:', error)
 
