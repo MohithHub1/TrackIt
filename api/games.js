@@ -7,6 +7,10 @@ export default async function handler(req, res) {
   try {
     const query = String(req.query.search || '').trim()
     const apiKey = process.env.THEGAMESDB_API_KEY
+    console.log(
+  'TheGamesDB API key loaded:',
+  Boolean(apiKey)
+)
 
     if (!query) {
       return res.status(400).json({ error: 'Search query is required' })
