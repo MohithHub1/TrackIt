@@ -70,6 +70,30 @@ useEffect(() => {
     subscription.unsubscribe()
   }
 }, [])
+useEffect(() => {
+  function handleProfileOutsideClick(event) {
+    if (
+      profileMenuRef.current &&
+      !profileMenuRef.current.contains(event.target)
+    ) {
+      setShowProfileMenu(false)
+    }
+  }
+
+  function handleProfileEscape(event) {
+    if (event.key === 'Escape') {
+      setShowProfileMenu(false)
+    }
+  }
+
+  document.addEventListener('mousedown', handleProfileOutsideClick)
+  document.addEventListener('keydown', handleProfileEscape)
+
+  return () => {
+    document.removeEventListener('mousedown', handleProfileOutsideClick)
+    document.removeEventListener('keydown', handleProfileEscape)
+  }
+}, [])
 
 
 async function handleLogout() {
@@ -83,6 +107,8 @@ async function handleLogout() {
   }
 }
 const [showDiscover, setShowDiscover] = useState(true)
+const [showProfileMenu, setShowProfileMenu] = useState(false)
+const profileMenuRef = useRef(null)
 const [deleteConfirmation, setDeleteConfirmation] = useState(null)
 const [importingBackup, setImportingBackup] = useState(false)
 const backupFileRef = useRef(null)
@@ -1564,44 +1590,73 @@ const importJSON = async (event) => {
             <h1>My Checklist</h1>
           </div>
           <div className="topbar-actions">
-            <button
-  type="button"
-  className="theme-toggle"
-  onClick={handleLogout}
->
-  Log Out
-</button>
 <button
-  type="button"
-  className="theme-toggle"
+  className="header-action"
   onClick={exportJSON}
 >
-  📦 Backup JSON
+  <span aria-hidden="true">♧</span>
+  Backup
 </button>
+
 <button
-  type="button"
-  className="theme-toggle"
+  className="header-action"
   onClick={() => backupFileRef.current?.click()}
 >
-  📂 Import JSON
+  <span aria-hidden="true">⇧</span>
+  Import
 </button>
 
-<input
-  type="file"
-  accept=".json,application/json"
-  ref={backupFileRef}
-  onChange={importJSON}
-  style={{ display: 'none' }}
-/>
+<button
+  className="header-action theme-toggle"
+  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+>
+  {theme === 'dark' ? (
+    <>
+      <span aria-hidden="true">☀</span>
+      Light
+    </>
+  ) : (
+    <>
+      <span aria-hidden="true">☾</span>
+      Dark
+    </>
+  )}
+</button>
+
+<div className="profile-wrapper" ref={profileMenuRef}>
   <button
     type="button"
-    className="theme-toggle"
-    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+    className="profile"
+    onClick={() => setShowProfileMenu(!showProfileMenu)}
+    aria-label="Open account settings"
+    aria-expanded={showProfileMenu}
   >
-    {theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode'}
+    {user?.email?.charAt(0).toUpperCase() || 'M'}
   </button>
 
-  <div className="profile">M</div>
+  {showProfileMenu && (
+    <div className="profile-dropdown">
+      <div className="profile-dropdown-header">
+        <strong>My Account</strong>
+        <span>{user?.email || 'User account'}</span>
+      </div>
+
+      <div className="profile-dropdown-divider" />
+
+      <button type="button" onClick={() => setShowProfileMenu(false)}>
+        ⚙️ Account Settings
+      </button>
+
+      <button
+        type="button"
+        className="profile-logout"
+        onClick={handleLogout}
+      >
+        ↪ Log Out
+      </button>
+    </div>
+  )}
+</div>
 </div>
         </header>
 

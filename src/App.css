@@ -1500,3 +1500,260 @@ footer span { color: #b8a1f5; }
   background: #dc2626;
   transform: scale(1.08);
 }
+
+/* Header action buttons */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.header-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 15px;
+  border: 1px solid #383347;
+  border-radius: 10px;
+  background: #1b1925;
+  color: #e8e2ff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.header-action:hover {
+  background: #302742;
+  border-color: #9565ed;
+  transform: translateY(-2px);
+}
+
+/* Logout button */
+.logout-button {
+  background: #30202b;
+  border-color: #633448;
+  color: #ff9aaa;
+}
+
+.logout-button:hover {
+  background: #702d40;
+  border-color: #ef667e;
+  color: white;
+}
+
+/* Light mode */
+.light-theme .header-action {
+  background: #ffffff;
+  color: #493477;
+  border-color: #ded5ed;
+  box-shadow: 0 2px 6px rgba(40, 20, 70, 0.05);
+}
+
+.light-theme .header-action:hover {
+  background: #f0e9ff;
+  border-color: #9870dc;
+}
+
+.light-theme .logout-button {
+  background: #fff0f1;
+  color: #c03950;
+  border-color: #f2c5cb;
+}
+
+.light-theme .logout-button:hover {
+  background: #ffe0e4;
+  border-color: #dc687a;
+}
+
+/* Mobile header */
+@media (max-width: 768px) {
+  .topbar-actions {
+    justify-content: flex-start;
+    gap: 7px;
+  }
+
+  .header-action {
+    padding: 9px 11px;
+    font-size: 12px;
+  }
+}
+
+/* Profile dropdown */
+.profile-wrapper {
+  position: relative;
+}
+
+.profile-wrapper .profile {
+  cursor: pointer;
+  border: none;
+  transition: 0.2s ease;
+}
+
+.profile-wrapper .profile:hover {
+  transform: scale(1.06);
+  box-shadow: 0 0 0 4px rgba(151, 105, 235, 0.18);
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: 250px;
+  padding: 12px;
+  background: #211d2d;
+  border: 1px solid #403650;
+  border-radius: 14px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  animation: profileDropIn 0.18s ease;
+}
+
+.profile-dropdown-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+}
+
+.profile-dropdown-header strong {
+  color: #fff;
+  font-size: 14px;
+}
+
+.profile-dropdown-header span {
+  color: #b8accb;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.profile-dropdown-divider {
+  height: 1px;
+  background: #403650;
+  margin: 8px 0;
+}
+
+.profile-dropdown > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: #eee8f7;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-dropdown > button:hover {
+  background: #342b46;
+}
+
+.profile-dropdown > .profile-logout {
+  color: #ff929f;
+}
+
+@keyframes profileDropIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Light theme dropdown */
+.light-theme .profile-dropdown {
+  background: #fff;
+  border-color: #e4dced;
+  box-shadow: 0 12px 35px rgba(40, 20, 70, 0.14);
+}
+
+.light-theme .profile-dropdown-header strong {
+  color: #302344;
+}
+
+.light-theme .profile-dropdown-header span {
+  color: #776b85;
+}
+
+.light-theme .profile-dropdown-divider {
+  background: #eee7f4;
+}
+
+.light-theme .profile-dropdown > button {
+  color: #49375e;
+}
+
+.light-theme .profile-dropdown > button:hover {
+  background: #f3edfc;
+}
+
+.light-theme .profile-dropdown > .profile-logout {
+  color: #c03950;
+}
+/* Light mode button glow */
+.header-action.theme-toggle {
+  transition: all 0.25s ease;
+}
+
+.header-action.theme-toggle:hover {
+  border-color: #a879ff;
+  box-shadow:
+    0 0 8px rgba(168, 121, 255, 0.25),
+    0 0 18px rgba(168, 121, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Responsive TrackIt header */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .topbar-actions {
+    justify-content: flex-start;
+    gap: 7px;
+    width: 100%;
+  }
+
+  .header-action {
+    padding: 8px 11px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .profile {
+    width: 36px;
+    height: 36px;
+  }
+
+  .profile-dropdown {
+    right: 0;
+    width: 240px;
+    max-width: calc(100vw - 30px);
+  }
+}
+
+@media (max-width: 420px) {
+  .topbar-actions {
+    gap: 6px;
+  }
+
+  .header-action {
+    padding: 8px 9px;
+    font-size: 11px;
+  }
+}
